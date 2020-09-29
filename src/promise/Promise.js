@@ -12,13 +12,14 @@ class Promise {
 
 
     const self = this;
-    function reject(resone) {
+    function reject(v) {
+      const reason = v;
       // PromiseA+ 2.2.4
       setTimeout(() => {
         //PromiseA+ 2.1.3
         if (self.status === self.PENDING) {
           self.status = self.REJECTED;
-          self.value = resone;
+          self.value = reason;
           // console.dir(self);
           // console.log('------self--------------------------------');
           self.onRejectCallbacks.forEach(item => item(self.value));
@@ -60,7 +61,7 @@ class Promise {
       // console.log('-----------------------------------------------------------');
       if (x.status === self.PENDING) {
         // PromiseA+ 2.3.2.1
-        x.then(function(y) { self.resolvePromise(promise2, y, resolve, reject); }, reject);
+        x.then(function (y) { self.resolvePromise(promise2, y, resolve, reject); }, reject);
       } else {
         // PromiseA+ 2.3.2.2  /PromiseA+ 2.3.2.3
         x.then(resolve, reject);
@@ -82,13 +83,13 @@ class Promise {
           try {
             then.call(
               x,
-              function(y) {
+              function (y) {
                 if (called) return;
                 called = true;
                 // PromiseA+ 2.3.3.3.1
                 self.resolvePromise(promise2, y, resolve, reject);
               },
-              function(e) {
+              function (e) {
                 if (called) return;
                 called = true;
                 // PromiseA+ 2.3.3.3.2
@@ -129,27 +130,43 @@ class Promise {
   then(onFulfilled, onRejected) {
     const self = this;
     //PromiseA+ 2.2.1 / PromiseA+ 2.2.5 / PromiseA+ 2.2.7.3 / PromiseA+ 2.2.7.4
-    onFulfilled = typeof onFulfilled === 'function' ? onFulfilled : v => v;
-    onRejected = typeof onRejected === 'function' ? onRejected : v => { throw v; };
+    onFulfilled = typeof onFulfilled === 'function' ? onFulfilled : x => x;
+    onRejected = typeof onRejected === 'function' ? onRejected : e => { throw e; };
 
     let promise2;
 
+    function fulfillCallback(resolve, reject) {
+      // PromiseA+ 2.2.4
+      setTimeout(() => {
+        try {
+          const x = onFulfilled(self.value);
+          //PromiseA+ 2.2.7.1
+          self.resolvePromise(promise2, x, resolve, reject);
+        } catch (error) {
+          //PromiseA+ 2.2.7.2
+          reject(error);
+        }
+      });
+    }
+    function rejectCallback(resolve, reject) {
+      // PromiseA+ 2.2.4
+      setTimeout(() => {
+        try {
+          const e = onRejected(self.value);
+          //PromiseA+ 2.2.7.1
+          self.resolvePromise(promise2, e, resolve, reject);
+        } catch (error) {
+          //PromiseA+ 2.2.7.2
+          reject(error);
+        }
+      });
+    }
 
     // PromiseA+ 2.2.2
     if (self.status === self.FULFILLED) {
       //PromiseA+ 2.2.7
       return promise2 = new Promise((resolve, reject) => {
-        // PromiseA+ 2.2.4
-        setTimeout(() => {
-          try {
-            const x = onFulfilled(self.value);
-            //PromiseA+ 2.2.7.1
-            self.resolvePromise(promise2, x, resolve, reject);
-          } catch (error) {
-            //PromiseA+ 2.2.7.2
-            reject(error);
-          }
-        });
+        fulfillCallback(resolve, reject);
       });
 
     }
@@ -157,59 +174,77 @@ class Promise {
     if (self.status === self.REJECTED) {
       //PromiseA+ 2.2.7
       return promise2 = new Promise((resolve, reject) => {
-        setTimeout(() => {
-          try {
-            const x = onRejected(self.value);
-            //PromiseA+ 2.2.7.1
-            self.resolvePromise(promise2, x, resolve, reject);
-          } catch (error) {
-            //PromiseA+ 2.2.7.2
-            reject(error);
-          }
-        });
+        rejectCallback(resolve, reject);
       });
     }
     if (self.status === self.PENDING) {
       //PromiseA+ 2.2.7
       return promise2 = new Promise((resolve, reject) => {
         self.onResolveCallbacks.push(() => {
-          // setTimeout(() => {
-          try {
-            const x = onFulfilled(self.value);
-
-
-
-            //PromiseA+ 2.2.7.1
-            self.resolvePromise(promise2, x, resolve, reject);
-          } catch (error) {
-            //PromiseA+ 2.2.7.2
-            reject(error);
-          }
-          // });
+          fulfillCallback(resolve, reject);
         });
 
         self.onRejectCallbacks.push(() => {
-          // setTimeout(() => {
-          try {
-            const x = onRejected(self.value);
-            //PromiseA+ 2.2.7.1
-            self.resolvePromise(promise2, x, resolve, reject);
-          } catch (error) {
-            //PromiseA+ 2.2.7.2
-            reject(error);
-          }
-          // });
+          rejectCallback(resolve, reject);
         });
       });
     }
   }
+
+  // 捕获错误的方法
   catch(onRejected) {
     self.then(null, onRejected);
   }
+
+
 }
 
 
-Promise.deferred = Promise.defer = function () {
+//all 实现
+Promise.all = function (promises) {
+  //promises是一个promise的数组
+  return new Promise(function (resolve, reject) {
+    const arr = []; //arr是最终返回值的结果
+    let i = 0; // 表示成功了多少次
+    function processData(index, y) {
+      arr[index] = y;
+      if (++i === promises.length) {
+        resolve(arr);
+      }
+    }
+    for (let i = 0; i < promises.length; i++) {
+      promises[i].then(function (y) {
+        processData(i, y);
+      }, reject);
+    }
+  });
+};
+
+// race 实现
+Promise.race = function (promises) {
+  return new Promise(function (resolve, reject) {
+    for (let i = 0; i < promises.length; i++) {
+      promises[i].then(resolve, reject);
+    }
+  });
+};
+
+// Promise.resolve 实现
+Promise.resolve = function (value) {
+  return new Promise(function (resolve, reject) {
+    resolve(value);
+  });
+};
+
+// Promise.reject 实现
+Promise.reject = function (reason) {
+  return new Promise(function (resolve, reject) {
+    reject(reason);
+  });
+};
+
+
+Promise.deferred = function () {
   const defer = {};
   defer.promise = new Promise(function (resolve, reject) {
     defer.resolve = resolve;
