@@ -32,9 +32,7 @@ function quickSort(arr, left = 0, right = arr.length - 1) {
     }
 
     arr[left] = povit;
-
     return left;
-
   }
 
 
@@ -44,7 +42,6 @@ function quickSort(arr, left = 0, right = arr.length - 1) {
     quickSort(arr, partitionIndex + 1, right);
   }
   return arr;
-
 }
 
 
@@ -59,22 +56,22 @@ function quickSort1(arr) {
   // 分区
   function partition(arr, left, right) {
     /**
-       * 开始时不知最终pivot的存放位置，可以先将pivot交换到后面去
-       * 这里直接定义最右边的元素为基准
-       */
+     * 开始时不知最终pivot的存放位置，可以先将pivot交换到后面去
+     * 这里直接定义最右边的元素为基准
+     */
     const pivot = arr[right];
     /**
-       * 存放小于pivot的元素时，是紧挨着上一元素的，否则空隙里存放的可能是大于pivot的元素，
-       * 故声明一个storeIndex变量，并初始化为left来依次紧挨着存放小于pivot的元素。
-       */
+     * 存放小于pivot的元素时，是紧挨着上一元素的，否则空隙里存放的可能是大于pivot的元素，
+     * 故声明一个storeIndex变量，并初始化为left来依次紧挨着存放小于pivot的元素。
+     */
     let storeIndex = left;
     for (let i = left; i < right; i++) {
       if (arr[i] < pivot) {
         /**
-               * 遍历数组，找到小于的pivot的元素，（大于pivot的元素会跳过）
-               * 将循环i次时得到的元素，通过swap交换放到storeIndex处，
-               * 并对storeIndex递增1，表示下一个可能要交换的位置
-               */
+         * 遍历数组，找到小于的pivot的元素，（大于pivot的元素会跳过）
+         * 将循环i次时得到的元素，通过swap交换放到storeIndex处，
+         * 并对storeIndex递增1，表示下一个可能要交换的位置
+         */
         swap(arr, storeIndex, i);
         storeIndex++;
       }
